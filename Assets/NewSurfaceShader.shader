@@ -1,8 +1,10 @@
-﻿Shader "Custom/NewSurfaceShader" {
+Shader "Custom/NewSurfaceShader" {
 	Properties{
-	_Color("DICKSDICSK",Color)=(1,1,.5,1)}
+		_MainTex("albedo texture",2D)= "white"{}
+	}
 	SubShader{
-		
+		Tags{"RenderType"="Opaque"}
+
 		Pass
 		{
 			Material
