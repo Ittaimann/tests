@@ -1,4 +1,0 @@
-﻿Shader "TEST"
-{
-	Fallback "Diffuse"
-}
