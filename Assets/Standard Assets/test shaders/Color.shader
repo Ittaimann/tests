@@ -1,4 +1,6 @@
-﻿Shader "self/Color" {
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "self/Color" {
 	Properties{
 		_Color("Color",Color)=(1,1,1,1)
 	}
@@ -14,7 +16,7 @@
 
 			float4 vert(float4 vertex : POSITION) : SV_POSITION
 			{
-				return mul(UNITY_MATRIX_MVP,vertex);
+				return UnityObjectToClipPos(vertex);
 			}
 			fixed4 _Color;
 

@@ -1,4 +1,6 @@
-﻿Shader "TEST/TEST3"
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "TEST/TEST3"
 {
 	Properties
 	{
@@ -16,7 +18,7 @@
 
 			float4 vert(float4 vertex : POSITION) : SV_POSITION
 			{
-				return mul(UNITY_MATRIX_MVP,vertex);
+				return UnityObjectToClipPos(vertex);
 			}
 
 			fixed4 _Color;
