@@ -62,6 +62,12 @@
 			sampler2D _EmissionMap;
 			float3 _Emission;
 
+			sampler2D _OcclusionMap;
+			float _OcclusionStrength;
+
+			sampler2D _DetailMask;
+
+
 
 			float GetMetallic (v2f i)
 			{
@@ -97,9 +103,36 @@
 
 			}
 
+			float GetOcclusion(v2f i)
+			{
+				#if defined(_OCCLUSION_MAP)
+					return lerp(1,tex2D(_OcclusionMap,i.uv.xy).g, _OcclusionStrength);
+				#else
+					return 1;
+				#endif
+			}
+
+			float GetDetailMask(v2f i)
+			{
+				#if defined (_DETAIL_MASK)
+					return tex2D(_DetailMask,i.uv.xy).a;
+				#else
+					return 1;
+				#endif
+
+			}
+
 			float3 CreateBinormal (float3 normal, float3 tangent, float binormalSign) {
 				return cross(normal, tangent.xyz) *
 					(binormalSign * unity_WorldTransformParams.w);
+			}
+
+			float GetAlpha (v2f i){
+				float alpha =_Tint.a;
+				#if !defined(_SMOOTHNESS_ALBEDO)
+					alpha*=tex2D(_MainTex,i.uv.xy).a;
+				#endif
+				return alpha;
 			}
 
 
@@ -140,7 +173,7 @@
 				UNITY_LIGHT_ATTENUATION(attenuation, i, i.worldPos);
 
 			//	float3 lightVec = _WorldSpaceLightPos0.xyz - i.worldPos;
-
+				//attenuation*=GetOcclusion(i);
 			//	UNITY_LIGHT_ATTENUATION(attenuation,0,i.worldPos);
 				light.color = _LightColor0.rgb * attenuation;
 				light.ndotl = DotClamped(i.normal, light.dir);
@@ -204,20 +237,34 @@
 						#else
 							indirectLight.specular=probe0;
 						#endif
+
+
+						float occlusion =GetOcclusion(i);
+						indirectLight.diffuse *= occlusion;
+						indirectLight.specular *= occlusion;
 				#endif
 
 				return indirectLight;
 			}
 
+			float3 GetTangetSpaceNormal(v2f i){
+				float3 normal=float3(0,0,1);
+				#if defined(_NORMAL_MAP)
+					normal=UnpackScaleNormal(tex2D(_NormalMap,i.uv.xy),_BumpScale);
+				#endif
+				#if defined(_DETAIL_NORMAL_MAP)
+					float3 detailNormal=UnpackScaleNormal(tex2D(_DetailNormalMap,i.uv.zw),_DetailBumpScale);
+					detailNormal=lerp(float3(0,0,1),detailNormal,GetDetailMask(i));
+					normal=BlendNormals(normal,detailNormal);
+					#endif
+				return normal;
+			}
 
 			void InitializeFragmentNormal(inout v2f i)
 			{
 
 
-				float3 mainNormal=UnpackScaleNormal(tex2D(_NormalMap,i.uv.xy),_BumpScale);
-				float3 detailNormal=UnpackScaleNormal(tex2D(_DetailNormalMap,i.uv.zw),_DetailBumpScale);
-
-				float3 tangentSpaceNormal=BlendNormals(mainNormal,detailNormal);
+				float3 tangentSpaceNormal=GetTangetSpaceNormal(i);
 				#if defined(BINORMAL_PER_FRAGMENT)
 						float3 binormal = CreateBinormal(i.normal, i.tangent.xyz, i.tangent.w);
 					#else
@@ -230,6 +277,15 @@
 
 			}
 
+			float3 GetAlbedo(v2f i)
+			{
+				float3 albedo = tex2D(_MainTex, i.uv.xy).rgb * _Tint.rgb;
+				#if defined (_DETAIL_ALBEDO_MAP)
+					float3 details =tex2D(_DetailTex,i.uv.zw)*unity_ColorSpaceDouble;
+					albedo=lerp(albedo,albedo*details,GetDetailMask(i));
+				#endif
+				return albedo;
+			}
 
 
 			float4 frag (v2f i) : SV_Target
@@ -237,12 +293,11 @@
 				InitializeFragmentNormal(i);
 				float3 viewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
 
-				float3 albedo = tex2D(_MainTex, i.uv.xy).rgb * _Tint.rgb;
-				albedo*=tex2D(_DetailTex,i.uv.zw)*unity_ColorSpaceDouble;
+
 				float3 specularTint;
 				float oneMinusReflectivity;
-				albedo = DiffuseAndSpecularFromMetallic(
-					albedo, GetMetallic(i), specularTint, oneMinusReflectivity
+				float3 albedo = DiffuseAndSpecularFromMetallic(
+					GetAlbedo(i), GetMetallic(i), specularTint, oneMinusReflectivity
 				);
 
 
